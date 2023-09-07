@@ -1,0 +1,25 @@
+[package]
+name = "avbroot-inc-ota"
+version = "0.1.0"
+license = "GPL-3.0-only"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = "1.0.75"
+clap = { version = "4.4.1", features = ["derive"] }
+itertools = "0.11.0"
+rsa = "0.9.2"
+tempfile = "3.8.0"
+x509-cert = "0.2.4"
+
+[dependencies.avbroot]
+git = "https://github.com/chenxiaolong/avbroot"
+tag = "v2.0.2"
+
+[dependencies.zip]
+git = "https://github.com/chenxiaolong/zip"
+rev = "989101f9384b9e94e36e6e9e0f51908fdf98bde6"
+default-features = false
+features = ["deflate"]
