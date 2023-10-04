@@ -22,10 +22,10 @@ use avbroot::{
     },
     protobuf::build::tools::releasetools::OtaMetadata,
     stream::{self, CountingWriter, FromReader, HolePunchingWriter},
-    util,
 };
 use clap::Parser;
 use itertools::Itertools;
+use prost::Message;
 use rsa::RsaPrivateKey;
 use tempfile::TempDir;
 use x509_cert::Certificate;
@@ -434,7 +434,7 @@ fn build_ota_zip(
     inc_precondition.build = old_postcondition.build.clone();
     inc_precondition.build_incremental = old_postcondition.build_incremental.clone();
 
-    let inc_metadata_raw = util::write_protobuf(&inc_metadata)?;
+    let inc_metadata_raw = inc_metadata.encode_to_vec();
 
     let data_descriptor_size = 16;
     let metadata = ota::add_metadata(
