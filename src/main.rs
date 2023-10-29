@@ -25,7 +25,6 @@ use avbroot::{
 };
 use clap::Parser;
 use itertools::Itertools;
-use prost::Message;
 use rsa::RsaPrivateKey;
 use tempfile::TempDir;
 use x509_cert::Certificate;
@@ -434,15 +433,13 @@ fn build_ota_zip(
     inc_precondition.build = old_postcondition.build.clone();
     inc_precondition.build_incremental = old_postcondition.build_incremental.clone();
 
-    let inc_metadata_raw = inc_metadata.encode_to_vec();
-
     let data_descriptor_size = 16;
     let metadata = ota::add_metadata(
         &entries,
         &mut zip_writer,
         // Offset where next entry would begin.
         entries.last().map(|e| e.offset + e.size).unwrap() + data_descriptor_size,
-        &inc_metadata_raw,
+        &inc_metadata,
         payload_metadata_size.unwrap(),
     )
     .context("Failed to write new OTA metadata")?;
