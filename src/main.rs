@@ -99,8 +99,7 @@ fn extract_image(input: &Path, output: &Path) -> Result<()> {
         directory: output.to_owned(),
         all: true,
         boot_only: false,
-        // Doesn't matter
-        boot_partition: String::new(),
+        boot_partition: None,
     };
 
     avbroot::cli::ota::extract_subcommand(&cli, &Arc::new(AtomicBool::new(false)))
