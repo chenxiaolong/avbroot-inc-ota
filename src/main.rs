@@ -100,6 +100,7 @@ fn extract_image(input: &Path, output: &Path) -> Result<()> {
         all: true,
         boot_only: false,
         boot_partition: None,
+        fastboot: false,
     };
 
     avbroot::cli::ota::extract_subcommand(&cli, &Arc::new(AtomicBool::new(false)))
@@ -429,8 +430,10 @@ fn build_ota_zip(
         .postcondition
         .as_ref()
         .ok_or_else(|| anyhow!("Old full OTA has no postconditions"))?;
-    inc_precondition.build = old_postcondition.build.clone();
-    inc_precondition.build_incremental = old_postcondition.build_incremental.clone();
+    inc_precondition.build.clone_from(&old_postcondition.build);
+    inc_precondition
+        .build_incremental
+        .clone_from(&old_postcondition.build_incremental);
 
     let data_descriptor_size = 16;
     let metadata = ota::add_metadata(
