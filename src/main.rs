@@ -15,17 +15,16 @@ use std::{
 use anyhow::{anyhow, bail, Context, Result};
 use avbroot::{
     cli::ota::ExtractCli,
-    crypto::{self, PassphraseSource},
+    crypto::{self, PassphraseSource, RsaSigningKey},
     format::{
-        ota::{self, SigningWriter, ZipEntry},
+        ota::{self, SigningWriter, ZipEntry, ZipMode},
         payload::{PayloadHeader, PayloadWriter},
     },
     protobuf::build::tools::releasetools::OtaMetadata,
-    stream::{self, CountingWriter, FromReader, HolePunchingWriter},
+    stream::{self, CountingWriter, FromReader},
 };
 use clap::Parser;
 use itertools::Itertools;
-use rsa::RsaPrivateKey;
 use tempfile::TempDir;
 use x509_cert::Certificate;
 use zip::{write::FileOptions, CompressionMethod, ZipArchive, ZipWriter};
@@ -78,6 +77,15 @@ struct Cli {
     /// Certificate for OTA signing key.
     #[arg(short, long, value_name = "FILE", value_parser)]
     cert: PathBuf,
+
+    /// External program for signing.
+    ///
+    /// If this option is specified, then --key must refer to a public key. The
+    /// program will be invoked as:
+    ///
+    /// <program> <algo> <public key> [file <pass file>|env <pass env>]
+    #[arg(long, value_name = "PROGRAM", value_parser)]
+    signing_helper: Option<PathBuf>,
 }
 
 /// Parse OTA metadata and payload header from a full OTA zip.
@@ -289,7 +297,7 @@ fn generate_delta_payload(
 fn sign_payload(
     unsigned_payload: &Path,
     writer: impl Write,
-    key: &RsaPrivateKey,
+    key: &RsaSigningKey,
 ) -> Result<(String, u64)> {
     let inc_raw_reader = File::open(unsigned_payload)
         .with_context(|| format!("Failed to open for reading: {unsigned_payload:?}"))?;
@@ -336,7 +344,7 @@ fn sign_payload(
         .with_context(|| format!("Failed to copy from original payload: {name}"))?;
     }
 
-    let (_, p, m) = payload_writer
+    let (_, _, p, m) = payload_writer
         .finish()
         .context("Failed to finalize payload")?;
 
@@ -351,7 +359,7 @@ fn build_ota_zip(
     new_metadata: &OtaMetadata,
     unsigned_payload: &Path,
     apex_info: &Path,
-    key: &RsaPrivateKey,
+    key: &RsaSigningKey,
     cert: &Certificate,
 ) -> Result<()> {
     let raw_writer = OpenOptions::new()
@@ -361,9 +369,8 @@ fn build_ota_zip(
         .truncate(true)
         .open(output)
         .with_context(|| format!("Failed to open for writing: {output:?}"))?;
-    let hole_punching_writer = HolePunchingWriter::new(raw_writer);
-    let buffered_writer = BufWriter::new(hole_punching_writer);
-    let signing_writer = SigningWriter::new(buffered_writer);
+    let buffered_writer = BufWriter::new(raw_writer);
+    let signing_writer = SigningWriter::new_streaming(buffered_writer);
     let mut zip_writer = ZipWriter::new_streaming(signing_writer);
 
     let mut properties = None;
@@ -443,6 +450,7 @@ fn build_ota_zip(
         entries.last().map(|e| e.offset + e.size).unwrap() + data_descriptor_size,
         &inc_metadata,
         payload_metadata_size.unwrap(),
+        ZipMode::Streaming,
     )
     .context("Failed to write new OTA metadata")?;
 
@@ -450,12 +458,11 @@ fn build_ota_zip(
         .finish()
         .context("Failed to finalize output zip")?;
     let buffered_writer = signing_writer
-        .finish(key, cert)
+        .finish(key, cert, &AtomicBool::new(false))
         .context("Failed to sign output zip")?;
-    let hole_punching_writer = buffered_writer
+    let mut raw_writer = buffered_writer
         .into_inner()
         .context("Failed to flush output zip")?;
-    let mut raw_writer = hole_punching_writer.into_inner();
     raw_writer.flush().context("Failed to flush output zip")?;
 
     println!("Verifying metadata offsets");
@@ -471,16 +478,28 @@ fn build_ota_zip(
 }
 
 fn main_wrapper(cli: &Cli) -> Result<()> {
-    let passphrase_source = if let Some(v) = &cli.pass_env_var {
-        PassphraseSource::EnvVar(v.clone())
-    } else if let Some(p) = &cli.pass_file {
-        PassphraseSource::File(p.clone())
+    let passphrase_source = PassphraseSource::new(
+        &cli.key,
+        cli.pass_file.as_deref(),
+        cli.pass_env_var.as_deref(),
+    );
+    let key = if let Some(helper) = &cli.signing_helper {
+        let public_key = crypto::read_pem_public_key_file(&cli.key)
+            .with_context(|| format!("Failed to load key: {:?}", cli.key))?;
+
+        RsaSigningKey::External {
+            program: helper.clone(),
+            public_key_file: cli.key.clone(),
+            public_key,
+            passphrase_source,
+        }
     } else {
-        PassphraseSource::Prompt(format!("Enter passphrase for {:?}: ", cli.key))
+        let private_key = crypto::read_pem_key_file(&cli.key, &passphrase_source)
+            .with_context(|| format!("Failed to load key: {:?}", cli.key))?;
+
+        RsaSigningKey::Internal(private_key)
     };
 
-    let key = crypto::read_pem_key_file(&cli.key, &passphrase_source)
-        .with_context(|| format!("Failed to load key: {:?}", cli.key))?;
     let cert = crypto::read_pem_cert_file(&cli.cert)
         .with_context(|| format!("Failed to load certificate: {:?}", cli.cert))?;
 

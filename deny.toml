@@ -16,7 +16,7 @@ allow = [
     "ISC",
     "MIT",
     "OpenSSL",
-    "Unicode-DFS-2016",
+    "Unicode-3.0",
 ]
 
 [[licenses.clarify]]
@@ -39,6 +39,5 @@ unknown-git = "deny"
 allow-git = [
     "https://github.com/chenxiaolong/avbroot",
     "https://github.com/chenxiaolong/bzip2-rs",
-    "https://github.com/chenxiaolong/xz2-rs",
     "https://github.com/chenxiaolong/zip",
 ]
