@@ -19,6 +19,7 @@ use avbroot::{
     protobuf::build::tools::releasetools::OtaMetadata,
     stream::CountingWriter,
 };
+use tracing::info;
 use x509_cert::Certificate;
 use zip::{write::FileOptions, CompressionMethod, ZipArchive, ZipWriter};
 
@@ -116,7 +117,7 @@ pub fn build_ota_zip(
         ota::PATH_OTACERT,
         APEX_INFO,
     ] {
-        println!("Creating {path:?}");
+        info!("Creating {path:?}");
 
         zip_writer
             .start_file_with_extra_data(path, options)
@@ -179,7 +180,7 @@ pub fn build_ota_zip(
         .context("Failed to flush output zip")?;
     raw_writer.flush().context("Failed to flush output zip")?;
 
-    println!("Verifying metadata offsets");
+    info!("Verifying metadata offsets");
     raw_writer.rewind()?;
     ota::verify_metadata(
         BufReader::new(&mut raw_writer),

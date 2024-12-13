@@ -19,6 +19,7 @@ use avbroot::{
 use clap::Parser;
 use itertools::Itertools;
 use tempfile::TempDir;
+use tracing::info;
 
 use crate::{cli::KeyGroup, util};
 
@@ -190,7 +191,7 @@ fn generate_delta_payload(
         command.arg(format!("--security_patch_level={level}"));
     }
 
-    println!("Running: {command:?}");
+    info!("Running: {command:?}");
 
     let mut child = command
         .spawn()
@@ -266,21 +267,21 @@ fn sign_payload(
 pub fn generate_main(cli: &GenerateCli) -> Result<()> {
     let (key, cert) = cli.key.load_key()?;
 
-    println!("Creating temporary directories");
+    info!("Creating temporary directories");
     let old_temp_dir = TempDir::new()?;
     let new_temp_dir = TempDir::new()?;
     let inc_temp_dir = TempDir::new()?;
 
-    println!("Extracting old OTA");
+    info!("Extracting old OTA");
     util::extract_image(&cli.input_old, old_temp_dir.path())?;
 
-    println!("Extracting new OTA");
+    info!("Extracting new OTA");
     util::extract_image(&cli.input_new, new_temp_dir.path())?;
 
-    println!("Parsing old full OTA metadata");
+    info!("Parsing old full OTA metadata");
     let (old_metadata, _) = util::parse_metadata(&cli.input_old)?;
 
-    println!("Parsing new full OTA metadata");
+    info!("Parsing new full OTA metadata");
     let (new_metadata, new_header) = util::parse_metadata(&cli.input_new)?;
 
     let apex_info = inc_temp_dir.path().join(util::APEX_INFO);
@@ -288,22 +289,22 @@ pub fn generate_main(cli: &GenerateCli) -> Result<()> {
     let postinstall_config = inc_temp_dir.path().join("postinstall_config.txt");
     let unsigned_payload = inc_temp_dir.path().join("payload.bin");
 
-    println!("Extracting apex_info.pb from new OTA");
+    info!("Extracting apex_info.pb from new OTA");
     util::extract_zip_entry(&cli.input_new, util::APEX_INFO, &apex_info)?;
 
-    println!("Creating partial dynamic_partitions_info.txt");
+    info!("Creating partial dynamic_partitions_info.txt");
     fs::write(
         &dynamic_partitions_info,
         generate_dynamic_partitions_info(&new_header),
     )?;
 
-    println!("Creating postinstall_config.txt");
+    info!("Creating postinstall_config.txt");
     fs::write(
         &postinstall_config,
         generate_postinstall_config(&new_header),
     )?;
 
-    println!("Generating unsigned delta payload.bin");
+    info!("Generating unsigned delta payload.bin");
     generate_delta_payload(
         &unsigned_payload,
         &new_header,
@@ -319,7 +320,7 @@ pub fn generate_main(cli: &GenerateCli) -> Result<()> {
     drop(old_temp_dir);
     drop(new_temp_dir);
 
-    println!("Creating incremental OTA zip");
+    info!("Creating incremental OTA zip");
 
     // Set up preconditions checks to ensure that the incremental OTA can only
     // be applied on top of the correct source OS build.

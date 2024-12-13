@@ -163,6 +163,7 @@ dependencies = [
  "prost",
  "rsa",
  "tempfile",
+ "tracing",
  "x509-cert",
  "zip",
 ]

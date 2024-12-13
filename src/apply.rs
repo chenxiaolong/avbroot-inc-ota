@@ -19,6 +19,7 @@ use avbroot::{
 };
 use clap::Parser;
 use tempfile::TempDir;
+use tracing::info;
 
 use crate::{cli::KeyGroup, util};
 
@@ -93,7 +94,7 @@ fn apply_delta_payload(
         command.arg(value);
     }
 
-    println!("Running: {command:?}");
+    info!("Running: {command:?}");
 
     let mut child = command
         .spawn()
@@ -175,7 +176,7 @@ fn create_payload(
         })
         .collect::<Result<HashMap<_, _>>>()?;
 
-    println!("Generating new OTA payload");
+    info!("Generating new OTA payload");
 
     let mut payload_writer = PayloadWriter::new(writer, header.clone(), key.clone())
         .context("Failed to write payload header")?;
@@ -229,30 +230,30 @@ fn create_payload(
 pub fn apply_main(cli: &ApplyCli) -> Result<()> {
     let (key, cert) = cli.key.load_key()?;
 
-    println!("Creating temporary directories");
+    info!("Creating temporary directories");
     let old_temp_dir = TempDir::new()?;
     let new_temp_dir = TempDir::new()?;
     let inc_temp_dir = TempDir::new()?;
 
-    println!("Extracting full OTA");
+    info!("Extracting full OTA");
     util::extract_image(&cli.input_old, old_temp_dir.path())?;
 
-    println!("Extracting incremental OTA");
+    info!("Extracting incremental OTA");
     util::extract_zip(&cli.input_inc, inc_temp_dir.path())?;
 
-    println!("Parsing full OTA metadata");
+    info!("Parsing full OTA metadata");
     let (old_metadata, _) = util::parse_metadata(&cli.input_old)?;
 
-    println!("Parsing incremental OTA metadata");
+    info!("Parsing incremental OTA metadata");
     let (inc_metadata, inc_header) = util::parse_metadata(&cli.input_inc)?;
 
     let apex_info = inc_temp_dir.path().join(util::APEX_INFO);
     let inc_payload = inc_temp_dir.path().join("payload.bin");
 
-    println!("Creating skeleton partition images");
+    info!("Creating skeleton partition images");
     create_sparse_images(&inc_header, new_temp_dir.path())?;
 
-    println!("Applying delta payload.bin");
+    info!("Applying delta payload.bin");
     apply_delta_payload(
         &inc_payload,
         &inc_header,
@@ -264,7 +265,7 @@ pub fn apply_main(cli: &ApplyCli) -> Result<()> {
     // We don't need the source images anymore.
     drop(old_temp_dir);
 
-    println!("Creating full OTA zip");
+    info!("Creating full OTA zip");
 
     // Use the new metadata, but with the old full OTA's preconditions, which
     // won't make any assertions about the currently installed OS.
