@@ -1,0 +1,9 @@
+[project]
+name = "avbroot-inc-ota"
+version = "0.1.0"
+description = "Generate incremental OTAs or apply incremental OTAs to full OTAs"
+readme = "README.md"
+requires-python = ">=3.0"
+dependencies = [
+    "tomlkit>=0.7.2",
+]

@@ -13,7 +13,7 @@ In general, the key used to sign the output OTA should be the same one that was 
 
 The main exception to this is when creating a new full OTA to feed into avbroot, for example, if an OEM only provides an old full OTA and more recent incremental OTAs.
 
-## Building from source
+## Building delta_generator
 
 1. Download the AOSP source code (or the source code for any AOSP-based OS). This will likely require 100-200 GiB of disk space.
 
@@ -26,22 +26,28 @@ The main exception to this is when creating a new full OTA to feed into avbroot,
 
     The output will be in `out/host/linux-x86/bin/delta_generator`.
 
-3. Ensure the [Rust toolchain](https://www.rust-lang.org/) is installed.
+## Usage
 
-4. Clone this git repo and build `avbroot-inc-ota`.
+1. Make sure `avbroot` and `delta_generator` are available in `PATH`.
+
+    Alternatively, `--avbroot` and `--delta-generator` can be used to specify the path to the executables.
+
+2. Clone this git repo and run `avbroot-inc-ota.py`.
+
+    If `uv` is installed:
 
     ```bash
-    cargo build --release
+    uv run avbroot-inc-ota.py <arguments...>
     ```
 
-    The output will be in `target/release/avbroot-inc-ota`.
+    Alternatively, create a Python virtualenv manually, install the `tomlkit` dependency inside, and then run `avbroot-inc-ota.py`.
 
 ## Generate incremental OTA
 
 To generate an incremental OTA from two full OTAs:
 
 ```bash
-avbroot-inc-ota \
+uv run avbroot-inc-ota.py \
     generate \
     --input-old /path/to/old/full/ota.zip \
     --input-new /path/to/new/full/ota.zip \
@@ -58,7 +64,7 @@ For testing, it is perfectly valid to use the same file as both the old and new 
 To apply an incremental OTA to a full OTA and produce a new full OTA:
 
 ```bash
-avbroot-inc-ota \
+uv run avbroot-inc-ota.py \
     apply \
     --input-old /path/to/old/full/ota.zip \
     --input-inc /path/to/incremental/ota.zip \
