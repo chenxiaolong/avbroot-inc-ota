@@ -98,4 +98,4 @@ For simplicity of implementation, every partition is extracted and recompressed,
 
 ## License
 
-avbroot-inc-ota is licensed under GPLv3. Please see [`LICENSE`](./LICENSE) for the full license text.
+avbroot-inc-ota is licensed under GPL-3.0-only. Please see [`LICENSE`](./LICENSE) for the full license text.
