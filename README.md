@@ -74,6 +74,8 @@ uv run avbroot-inc-ota.py \
     --cert /path/to/ota.crt
 ```
 
+Multiple incremental OTAs can be applied at the same time by specifying `--input-inc` multiple times in the correct order.
+
 ## How it works
 
 ### Incremental OTA generation

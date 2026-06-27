@@ -8,6 +8,7 @@ import copy
 import logging
 import pathlib
 import shlex
+import shutil
 import subprocess
 import tempfile
 import typing
@@ -269,34 +270,45 @@ def apply_subcommand(cli):
     def avbroot(*args, **kwargs):
         run(cli.avbroot, *args, **kwargs)
 
-    with tempfile.TemporaryDirectory() as new_temp_dir:
-        new_temp_dir = pathlib.Path(new_temp_dir)
+    with tempfile.TemporaryDirectory() as temp_dir:
+        temp_dir = pathlib.Path(temp_dir)
 
-        new_ota_files = new_temp_dir / 'ota_files'
-        new_ota_files.mkdir()
+        old_temp_dir = temp_dir / 'old'
+        old_temp_dir.mkdir()
 
-        new_images = new_temp_dir / 'payload_images'
-        new_images.mkdir()
+        logging.info('Unpacking full OTA')
+        avbroot(
+            'zip', 'unpack', '-q',
+            '-i', cli.input_old,
+            '--payload',
+            cwd=old_temp_dir,
+        )
 
-        with (
-            tempfile.TemporaryDirectory() as old_temp_dir,
-            tempfile.TemporaryDirectory() as inc_temp_dir,
-        ):
-            old_temp_dir = pathlib.Path(old_temp_dir)
-            inc_temp_dir = pathlib.Path(inc_temp_dir)
+        logging.info('Loading OTA metadata from full OTA')
+        with open(old_temp_dir / 'ota.toml', 'r') as f:
+            full_ota = tomlkit.load(f)
 
-            logging.info('Unpacking full OTA')
-            avbroot(
-                'zip', 'unpack', '-q',
-                '-i', cli.input_old,
-                '--payload',
-                cwd=old_temp_dir,
-            )
+        new_temp_dir = temp_dir / 'new'
+
+        for i, input_inc in enumerate(cli.input_inc):
+            if i > 0:
+                shutil.rmtree(old_temp_dir)
+                new_temp_dir.rename(old_temp_dir)
+            new_temp_dir.mkdir()
+
+            new_ota_files = new_temp_dir / 'ota_files'
+            new_ota_files.mkdir()
+
+            new_images = new_temp_dir / 'payload_images'
+            new_images.mkdir()
+
+            inc_temp_dir = temp_dir / 'inc'
+            inc_temp_dir.mkdir()
 
             logging.info('Unpacking incremental OTA')
             avbroot(
                 'zip', 'unpack', '-q',
-                '-i', cli.input_inc,
+                '-i', input_inc,
                 cwd=inc_temp_dir,
             )
 
@@ -310,10 +322,6 @@ def apply_subcommand(cli):
                 '--skeleton',
                 cwd=inc_temp_dir,
             )
-
-            logging.info('Loading OTA metadata from full OTA')
-            with open(old_temp_dir / 'ota.toml', 'r') as f:
-                old_ota = tomlkit.load(f)
 
             logging.info('Loading OTA metadata from incremental OTA')
             with open(inc_temp_dir / 'ota.toml', 'r') as f:
@@ -338,14 +346,17 @@ def apply_subcommand(cli):
                 cli.delta_generator,
             )
 
-        # We don't need the source images anymore.
+            shutil.rmtree(inc_temp_dir)
+
+        shutil.rmtree(old_temp_dir)
 
         logging.info('Creating full OTA zip')
 
-        # Use the new metadata, but with the old full OTA's preconditions, which
-        # won't make any assertions about the currently installed OS.
+        # Use the last incremental OTA's metadata, but with the old full OTA's
+        # preconditions, which won't make any assertions about the currently
+        # installed OS.
         new_ota = copy.deepcopy(inc_ota)
-        new_ota['metadata']['precondition'] = old_ota['metadata']['precondition']
+        new_ota['metadata']['precondition'] = full_ota['metadata']['precondition']
 
         with open(new_temp_dir / 'ota.toml', 'w') as f:
             tomlkit.dump(new_ota, f)
@@ -467,6 +478,7 @@ def parse_args():
     apply.add_argument(
         '--input-inc',
         required=True,
+        action='append',
         help='Path to incremental OTA zip file',
     )
     apply.add_argument(
