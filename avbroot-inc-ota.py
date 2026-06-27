@@ -27,7 +27,7 @@ def run(*args, cwd = pathlib.Path.cwd()):
 
     cwd = cwd.absolute()
 
-    logging.info(f'Running: {' '.join(shlex.quote(str(arg)) for arg in args)} [cwd: {cwd}]')
+    logging.info(f'Running: {" ".join(shlex.quote(str(arg)) for arg in args)} [cwd: {cwd}]')
 
     subprocess.check_call(args, cwd=cwd)
 
@@ -42,12 +42,12 @@ def generate_dynamic_partitions_info(header: tomlkit.TOMLDocument) -> str:
     lines = []
 
     if d := header['manifest']['dynamic_partition_metadata']:
-        lines.append(f'super_partition_groups={' '.join(g['name'] for g in d['groups'])}\n')
+        lines.append(f'super_partition_groups={" ".join(g["name"] for g in d["groups"])}\n')
 
         for group in d['groups']:
             if 'size' in group:
-                lines.append(f'super_{group['name']}_group_size={group['size']}\n')
-                lines.append(f'super_{group['name']}_partition_list={' '.join(group['partition_names'])}\n')
+                lines.append(f'super_{group["name"]}_group_size={group["size"]}\n')
+                lines.append(f'super_{group["name"]}_partition_list={" ".join(group["partition_names"])}\n')
 
             if d.get('vabc_enabled'):
                 lines.append('virtual_ab=true\n')
@@ -106,7 +106,7 @@ def generate_delta_payload(
     new_partitions = [str(new_images / (n + '.img')) for n in partition_names]
     max_timestamp = new_header['manifest'].get('max_timestamp')
     timestamps = [
-        f'{p['partition_name']}:{p['version']}'
+        f'{p["partition_name"]}:{p["version"]}'
         for p in new_header['manifest']['partitions']
         if 'version' in p
     ]
@@ -115,15 +115,15 @@ def generate_delta_payload(
     cmd = [
         delta_generator,
         f'--out_file={output}',
-        f'--partition_names={':'.join(partition_names)}',
-        f'--old_partitions={':'.join(old_partitions)}',
-        f'--new_partitions={':'.join(new_partitions)}',
+        f'--partition_names={":".join(partition_names)}',
+        f'--old_partitions={":".join(old_partitions)}',
+        f'--new_partitions={":".join(new_partitions)}',
         '--enable_zucchini=true',
         '--enable_lz4diff=false',
         '--enable_vabc_xor=true',
         '--major_version=2',
         '--minor_version=8',
-        f'--partition_timestamps={','.join(timestamps)}',
+        f'--partition_timestamps={",".join(timestamps)}',
         f'--apex_info_file={apex_info}',
         f'--dynamic_partition_info_file={dynamic_partitions_info}',
         f'--new_postinstall_config_file={postinstall_config}',
@@ -157,9 +157,9 @@ def apply_delta_payload(
     run(
         delta_generator,
         f'--in_file={input}',
-        f'--partition_names={':'.join(partition_names)}',
-        f'--old_partitions={':'.join(old_partitions)}',
-        f'--new_partitions={':'.join(new_partitions)}',
+        f'--partition_names={":".join(partition_names)}',
+        f'--old_partitions={":".join(old_partitions)}',
+        f'--new_partitions={":".join(new_partitions)}',
     )
 
 
@@ -326,7 +326,8 @@ def apply_subcommand(cli):
             logging.info('Moving extra files from incremental OTA')
             for p in (inc_temp_dir / 'ota_files').iterdir():
                 if p.name != 'payload.bin' and p.name != 'payload_properties.txt':
-                    p.move_into(new_ota_files)
+                    # move_into() requires Python 3.14.
+                    p.rename(new_ota_files / p.name)
 
             logging.info('Applying incremental payload.bin')
             apply_delta_payload(
@@ -365,7 +366,7 @@ def apply_subcommand(cli):
         )
 
 
-def avbroot_sign_args(args, cert: bool = False) -> list(str | pathlib.Path):
+def avbroot_sign_args(args, cert: bool = False) -> list[str | pathlib.Path]:
     cmd = ['--key', args.key]
 
     if cert:
