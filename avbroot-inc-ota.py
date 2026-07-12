@@ -214,7 +214,7 @@ def generate_subcommand(cli):
             unsigned_payload = inc_temp_dir / 'payload.bin'
 
             logging.info('Moving extra files from new OTA')
-            (new_temp_dir / 'ota_files').move(inc_ota_files)
+            (new_temp_dir / 'ota_files').replace(inc_ota_files)
 
             logging.info('Creating partial dynamic_partitions_info.txt')
             with open(dynamic_partitions_info, 'w') as f:
@@ -338,7 +338,7 @@ def apply_subcommand(cli):
             for p in (inc_temp_dir / 'ota_files').iterdir():
                 if p.name != 'payload.bin' and p.name != 'payload_properties.txt':
                     # move_into() requires Python 3.14.
-                    p.rename(new_ota_files / p.name)
+                    p.replace(new_ota_files / p.name)
 
             logging.info('Applying incremental payload.bin')
             apply_delta_payload(
