@@ -98,6 +98,14 @@ The `payload.bin` manifest and the `META-INF/com/android/metadata{,.pb}` OTA met
 
 For simplicity of implementation, every partition is extracted and recompressed, even if the incremental OTA does not modify it. There is no logic to directly copy compressed data from the original `payload.bin` (unlike avbroot).
 
+## Contributing
+
+([AI policy](https://github.com/chenxiaolong/chenxiaolong/blob/master/AI_POLICY.md))
+
+Bug fix pull requests are welcome and much appreciated!
+
+If you are interested in implementing a new feature and would like to see it included in avbroot-inc-ota, please open an issue to discuss it first.
+
 ## License
 
 avbroot-inc-ota is licensed under GPL-3.0-only. Please see [`LICENSE`](./LICENSE) for the full license text.
